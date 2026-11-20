@@ -79,8 +79,11 @@ def pick_model(client: genai.Client) -> str:
     return ranked[0]
 
 
-def models_to_try(client: genai.Client, limit: int = 3) -> list[str]:
-    """Fallback order if the first model fails (no duplicates). Models that are out of quota are skipped."""
+def models_to_try(client: genai.Client | None, limit: int = 3) -> list[str]:
+    """Fallback order if the first model fails (no duplicates). Models that are out of quota are skipped.
+    No Gemini key (client None): empty list, so callers go straight to Groq."""
+    if client is None:
+        return []
     order = [pick_model(client)] + ranked_models(client)
     unique = list(dict.fromkeys(order))
     return [m for m in unique[:limit] if not is_blocked(m)]
@@ -260,8 +263,11 @@ def remove_overlaps(clips: list[Clip]) -> list[Clip]:
 
 # ---------- Talking to the AI ----------
 
-def make_client(timeout_ms: int = 120_000) -> genai.Client:
-    """Client with a timeout: if no answer arrives in time (default 2 minutes), stop; never retry silently."""
+def make_client(timeout_ms: int = 120_000) -> genai.Client | None:
+    """Client with a timeout: if no answer arrives in time (default 2 minutes), stop; never retry silently.
+    Gemini is optional: returns None without GEMINI_API_KEY (everything then runs on Groq)."""
+    if not GEMINI_API_KEY:
+        return None
     return genai.Client(
         api_key=GEMINI_API_KEY,
         http_options=types.HttpOptions(
@@ -508,11 +514,13 @@ def ask_with_fallback(prompt: str, schema, log=print, temperature: float = 0.4):
 def ping(model: str | None = None) -> None:
     """Quick test: is the model answering, and how fast?"""
     client = make_client()
+    if client is None:
+        raise RuntimeError("GEMINI_API_KEY is not set (Gemini is optional; the app runs on Groq without it).")
     model = model or pick_model(client)
     print(f"Ping: {model} ...")
     t0 = time.time()
     response = client.models.generate_content(model=model, contents="Reply with just: OK")
-    print(f"Jawab: {response.text.strip()!r}  ({time.time() - t0:.1f}s)")
+    print(f"Reply: {response.text.strip()!r}  ({time.time() - t0:.1f}s)")
 
 
 # ---------- Sharpening hooks: write 3 options, keep the strongest ----------
@@ -896,7 +904,7 @@ def find_clips(data: dict, n: int = 5, min_len: int = 20, max_len: int = 60, log
     """Send the transcript to the AI, get the best moments back, then validate and clean them.
     Long video (e.g. 1 hour): in one go on Gemini, otherwise search in parts and keep the best."""
     if not GEMINI_API_KEY and not GROQ_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY or GROQ_API_KEY not found in the .env file")
+        raise RuntimeError("GROQ_API_KEY not found in the .env file")
 
     want = n + max(1, n // 2)      # ask for a few extra: some clips fail validation, but we still end up with n
     lang = None if roman else data.get("language")     # the language Whisper detected (e.g. English)

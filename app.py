@@ -15,7 +15,6 @@ import streamlit as st
 
 st.set_page_config(page_title="AI Creative Studio", page_icon=":material/movie:", layout="wide")
 
-REQUIRED_KEYS = ("GROQ_API_KEY", "GEMINI_API_KEY")
 
 
 def load_secrets() -> tuple[list[str], str | None]:
@@ -147,7 +146,7 @@ if missing_keys():
     lines = [f"**API keys missing:** {', '.join(missing_keys())}.",
              "Locally: add them to the `.env` file. On Streamlit Cloud: app menu **⋮ → Settings → Secrets**, "
              "one per line, values in double quotes:",
-             "```toml\nGROQ_API_KEY = \"gsk_...\"\nGEMINI_API_KEY = \"...\"\n```"]
+             "```toml\nGROQ_API_KEY = \"gsk_...\"\n```"]
     if SECRET_NAMES:                     # names only, never values
         lines.append(f"Secrets found: `{', '.join(SECRET_NAMES)}`. Check the spelling of the missing names.")
     elif SECRETS_ERROR and "no secrets found" not in SECRETS_ERROR.lower():   # a real formatting error

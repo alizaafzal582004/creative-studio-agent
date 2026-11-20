@@ -87,11 +87,13 @@ def cmd_shorts(args):
 
 def cmd_models(args):
     client = make_client()
+    if client is None:
+        raise SystemExit("GEMINI_API_KEY is not set (Gemini is optional; the app runs on Groq without it).")
     print("Models available for your key:\n")
     for name in available_models(client):
         print("  ", name)
-    print(f"\nTry karne ki tarteeb: {ranked_models(client)[:3]}")
-    print(f"Pehla model: {pick_model(client)}")
+    print(f"\nFallback order: {ranked_models(client)[:3]}")
+    print(f"First choice: {pick_model(client)}")
 
 
 # ---------------- Command 4: ping ----------------

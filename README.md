@@ -56,7 +56,7 @@ features built so far.
 | Feature | Notes |
 |---|---|
 | Transcription with word-level timestamps | Groq Whisper, every word individually timed |
-| AI best-moment finder | Gemini with structured JSON output, Groq LLMs as automatic backup |
+| AI best-moment finder | Groq LLMs with structured JSON output; Gemini optional as a second provider |
 | Hook score (0-100) with reasoning | Every clip explains why it was picked |
 | SEO pack | Title, description and hashtags per clip, exported as JSON |
 | Silence removal (jump cuts) | Never cuts real speech or deliberate pauses |
@@ -146,8 +146,9 @@ flowchart LR
 ```
 
 **Built for reliability on free API tiers.**
-- **Two AI providers.** Gemini and Groq back each other up. Requests are routed by size: small prompts go to
-  the fastest model, large prompts to the biggest context.
+- **Runs on Groq alone.** One free Groq key powers transcription and every AI step. Add an optional Gemini key and
+  the two providers back each other up, with requests routed by size (small prompts to the fastest model, large
+  prompts to the biggest context).
 - **Rate limits handled for you.** Several Groq accounts rotate automatically. Rate-limited or exhausted models
   are remembered and skipped, and per-minute limits are waited out instead of failing the run.
 - **Work is cached.** Transcripts, Roman Urdu conversions and AI picks are reused, so re-runs cost almost nothing.
@@ -169,12 +170,12 @@ streamlit run server.py     # opens http://localhost:8501
 
 ### API keys
 
-Both required keys have free tiers.
+Only one key is required, and it has a free tier.
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `GROQ_API_KEY` | ✅ | Whisper transcription + backup LLM ([console.groq.com](https://console.groq.com)) |
-| `GEMINI_API_KEY` | ✅ | Clip selection and hooks ([aistudio.google.com](https://aistudio.google.com)) |
+| `GROQ_API_KEY` | ✅ | Transcription (Whisper) and all AI steps ([console.groq.com](https://console.groq.com)) |
+| `GEMINI_API_KEY` | | Optional second AI provider: larger context for long videos, extra fallback ([aistudio.google.com](https://aistudio.google.com)) |
 
 
 ## Step-by-step setup
@@ -246,12 +247,12 @@ pip install -r requirements.txt
 cp .env.example .env          # Windows: copy .env.example .env
 ```
 
-Open `.env` in any text editor and paste in your keys:
+Open `.env` in any text editor and paste in your key:
 
-1. **Groq.** Sign in at [console.groq.com](https://console.groq.com), go to **API Keys**, click
+1. **Groq (required).** Sign in at [console.groq.com](https://console.groq.com), go to **API Keys**, click
    **Create API Key**, and paste it as `GROQ_API_KEY`.
-2. **Gemini.** Sign in at [aistudio.google.com](https://aistudio.google.com), click **Get API key**, then
-   **Create API key**, and paste it as `GEMINI_API_KEY`.
+2. **Gemini (optional).** Sign in at [aistudio.google.com](https://aistudio.google.com), click **Get API key**,
+   then **Create API key**, and paste it as `GEMINI_API_KEY`. Without it, every AI step runs on Groq.
 
 ### 4. Run it
 
