@@ -122,10 +122,7 @@ Both required keys have free tiers.
 |---|---|---|
 | `GROQ_API_KEY` | ✅ | Whisper transcription + backup LLM ([console.groq.com](https://console.groq.com)) |
 | `GEMINI_API_KEY` | ✅ | Clip selection and hooks ([aistudio.google.com](https://aistudio.google.com)) |
-| `GROQ_API_KEY_2`, `GROQ_API_KEY_3` | | Extra Groq **accounts**; limits are per account, so each one adds quota |
-| `GEMINI_MODEL` | | Pin a specific Gemini model (default: best available Flash model) |
-| `PEXELS_API_KEY`, `PIXABAY_API_KEY`, `UNSPLASH_ACCESS_KEY` | | Stock B-roll sources |
-| `APP_PASSWORD` | | Password-protect the web app |
+
 
 ## Step-by-step setup
 
