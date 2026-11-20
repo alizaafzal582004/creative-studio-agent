@@ -1,0 +1,9 @@
+.env
+.streamlit/secrets.toml
+venv/
+__pycache__/
+input/
+output/
+models/
+*.mp4
+*.mp3
