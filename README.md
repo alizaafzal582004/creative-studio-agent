@@ -14,7 +14,7 @@ YouTube cuts, a combined highlight reel, thumbnails and an SEO pack.
 ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
 ![Groq](https://img.shields.io/badge/Groq-Whisper%20%2B%20LLMs-F55036)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+
 
 </div>
 
