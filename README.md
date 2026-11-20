@@ -38,46 +38,99 @@ AI Creative Studio does that pass in minutes, on a laptop CPU, with no GPU and n
 | **Thumbnails** | A 9:16 cover and a 16:9 YouTube thumbnail per Short, picked from the sharpest, clearest face frame |
 | **SEO pack** | Title, description, hashtags and the AI's reasoning for every clip (JSON) |
 
-## Features
+## Progress at a glance
 
-### 🧠 AI editing
-- **Viral moment detection.** Scores every candidate moment for hook strength and keeps the best, never overlapping.
-- **Honest hooks.** The AI drafts 3 hooks per clip using proven formulas and keeps the strongest. A built-in
-  truth check rejects any number, statistic or time claim that was not actually said in the video.
-- **Starts on the spoken hook.** Each Short opens on the exact sentence where the speaker delivers the hook.
-- **Stand-alone context.** If a Short needs earlier context to make sense, the AI adds the minimum setup sentences.
-  Clips always end on a complete sentence.
-- **Long videos.** Videos of 1 to 2 hours are transcribed in parallel chunks and analyzed in parallel parts, so
-  the wait is the length of the longest part, not the sum.
+| | Features |
+|---|---|
+| ✅ **Built** (Phases 0-2 + platform) | **50** |
+| ⬜ **Planned** (Phases 3-10) | **~35** |
 
-### 🎥 Visuals
-- **Face tracking and active-speaker detection**, using lip movement to tell who is talking.
-- **Automatic split-screen** for two-person interviews, plus **speaker focus**, which zooms in on a distant speaker.
-- **10 caption styles** with word-by-word highlight and pop, and 6 Google Fonts.
-- **5 hook looks:** bold, pill, sticker, box, and **text behind the person** (AI segmentation).
-- **Portrait-mode background blur**, zoom punch-ins on jump cuts, screen shake, flash and glitch transitions.
-- **Auto B-roll** from your own folder, Pexels, Pixabay or Unsplash, with photographer credits saved.
-- **Animated number counters**, lower thirds, an end screen with logo and CTA, and 6 color grades.
+Every built feature below is in this repository and covered by the end-to-end test. The roadmap phases are
+ordered by priority; later phases (accounts, platform publishing, voice/avatar) are larger efforts than the
+features built so far.
 
-### 🔊 Audio
-- **Silence removal** that never cuts real speech.
-- **Background noise removal** (RNNoise) with an optional speech gate for noisy rooms.
-- **Loudness normalized to -16 LUFS**, the Shorts and YouTube standard.
-- **Background music with automatic ducking**, plus synthesized sound effects with no licensing issues.
+## ✅ What's built
 
-### 🌍 Languages
-- **English, Urdu and Hindi.** Language is detected automatically, and the hooks and titles follow it.
-- **Roman Urdu captions** (Urdu written in Latin letters, the way millions of viewers actually type), word-synced.
+### Phase 1: Long video → Shorts engine (15)
 
-### 🖥️ Web app
-- Clean **glassmorphism UI** with dark and light themes.
-- **Large uploads up to 20 GB**, streamed to disk in chunks. The upload is resumable and shows a progress bar
-  with speed and time left. A 2-hour 1080p video uploads with flat memory use.
-- **Upload from a phone.** The sidebar shows a QR code to open the app on any device on the same Wi-Fi.
-- A **Stop button** that cancels a run and kills its render processes within seconds.
-- **Live progress log**, and settings can be changed mid-run without breaking the job.
-- **One-click presets:** Talking Head Viral, Podcast Pro, Clean & Minimal, or Custom.
-- **Optional password gate**, so a public deployment can't burn through your API quota.
+| Feature | Notes |
+|---|---|
+| Transcription with word-level timestamps | Groq Whisper, every word individually timed |
+| AI best-moment finder | Gemini with structured JSON output, Groq LLMs as automatic backup |
+| Hook score (0-100) with reasoning | Every clip explains why it was picked |
+| SEO pack | Title, description and hashtags per clip, exported as JSON |
+| Silence removal (jump cuts) | Never cuts real speech or deliberate pauses |
+| Face tracking + active-speaker detection | Lip movement decides who is talking |
+| Auto 9:16 reframe | The camera follows the speaker |
+| Web app | Streamlit |
+| Command-line tool | Every web option is also a CLI flag |
+| **Long videos, up to 2 hours** | Parallel chunked transcription and parallel AI analysis |
+| **Honest hooks + truth check** | 3 hook drafts per clip from proven formulas; any number or claim not actually said is rejected |
+| **Starts on the spoken hook** | Each Short opens on the exact sentence where the speaker delivers the hook |
+| **Stand-alone context** | Adds the minimum earlier setup a stranger needs; clips end on a complete sentence |
+| **Teaser (cold open)** | Optionally plays the strongest line first |
+| **Multilingual + Roman Urdu captions** | English, Urdu and Hindi with automatic language detection; Urdu/Hindi captions in Latin letters, word-synced |
+
+### Phase 2: Motion graphics, audio and output (28)
+
+| Feature | Notes |
+|---|---|
+| Word-by-word pop captions | Spoken word highlighted and popping |
+| Caption style presets | 10 styles |
+| AI keyword highlight | Key words colored and enlarged |
+| Emoji pop | Built; off by default for a cleaner look (one setting turns it back on) |
+| Sound effects | Whoosh, pop and ding, synthesized in code with no licensing issues |
+| Background music with auto-ducking | Music dips automatically under speech |
+| Kinetic hook animations | Slide, pop, typewriter and fade |
+| Zoom punch-ins | On jump cuts, to hide the cut |
+| Split-screen for interviews | Automatic for two-person conversations |
+| Lower thirds (name tag) | Slides in with name and title |
+| Progress bar | Optional, along the bottom |
+| Auto B-roll | Your own folder, Pexels, Pixabay or Unsplash, with photographer credits saved |
+| Number counter | Spoken numbers count up on screen |
+| Screen shake | On big moments |
+| Flash / glitch transitions | On camera switches and B-roll |
+| Color grades | 6 looks |
+| End screen + logo reveal | CTA, @handle and an animated logo |
+| Background blur (portrait mode) | AI person segmentation |
+| Thumbnail generator | 9:16 cover + 16:9 YouTube thumbnail from the sharpest face frame |
+| Text behind person | Big hook text placed behind the speaker |
+| One-click presets | Talking Head Viral, Podcast Pro, Clean & Minimal, Custom |
+| **Hook looks** | Bold, pill, sticker, box, or text behind the person |
+| **Google Fonts** | 6 caption fonts, downloaded automatically |
+| **Speaker focus** | Zooms in on a distant speaker, never cutting a face |
+| **16:9 landscape versions** | Every Short reframed for YouTube |
+| **Combined highlight reel** | All clips in original order, hook shown once, a transition at every join, bridge lines between parts |
+| **Background noise removal** | RNNoise, with an optional speech gate for noisy rooms |
+| **Loudness normalization** | -16 LUFS, the Shorts and YouTube standard |
+
+### Platform and web app (7)
+
+| Feature | Notes |
+|---|---|
+| **Large uploads, up to 20 GB** | Streamed to disk in resumable chunks, with progress, speed and time left |
+| **Stop button** | Cancels a run and kills its renders within seconds |
+| **Live progress** | The job runs in the background, so changing settings mid-run doesn't break it |
+| **Phone access** | A QR code opens the app on any device on the same Wi-Fi |
+| **Glassmorphism UI** | Dark and light themes |
+| **Password gate** | Optional, so a public deployment can't burn through your API quota |
+| **One-command deployment** | Docker image + Hugging Face Spaces script (keys stored as secrets) |
+
+Plus an end-to-end test script that runs every preset through the full pipeline (a developer tool, not counted above).
+
+## ⬜ Roadmap (next)
+
+| Phase | What's coming | Features |
+|---|---|---|
+| **2 (leftover)** | 3D text and particle effects (Remotion) | 1 |
+| **3. Style Match** | Download an inspiration reel, analyze its "style recipe" (cut pacing, captions, colors, music tempo), apply it to raw clips, beat-synced cuts | 4 |
+| **4. Carousel Maker** | Hook / value / CTA slides, auto layout with brand colors, PNG/PDF export, post caption | 4 |
+| **5. Real website** | Login and accounts, database + file storage, a dashboard for every module, saved brand kit, polished Next.js UI | 5 |
+| **6. Publish** | YouTube connect, Instagram connect, approval queue (approve / edit / reject + notifications), scheduler with best posting time | 4 |
+| **7. Grow** | Analytics dashboard, weak-point diagnosis, auto re-edit (version 2), performance-based SEO suggestions, learning loop | 5 |
+| **8. AI UGC** | Voice clone, AI script writer, lip-synced talking avatar, consent verification | 4 |
+| **9. Product Ad** | Product hero shots + motion graphics, 3 sizes (9:16, 1:1, 16:9), hook variants for A/B tests, product carousels | 4 |
+| **10. Launch** | Payments + credits, landing page, privacy policy + terms, beta user onboarding | 4 |
 
 ## How it works
 
