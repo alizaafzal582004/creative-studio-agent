@@ -381,8 +381,3 @@ and contains both audio and video, and that the thumbnails were created. It work
 [RNNoise models](https://github.com/GregorR/rnnoise-models) · [Google Fonts](https://fonts.google.com) (OFL / Apache) ·
 [Groq](https://groq.com) · [Google Gemini](https://ai.google.dev)
 
-## License
-
-Released under the [MIT License](LICENSE). Use it, modify it and ship it in commercial products; just keep the
-copyright notice. Third-party components keep their own licenses: Google Fonts (OFL / Apache 2.0), FFmpeg (LGPL/GPL,
-depending on the build you install), and the AI providers' terms of service for Groq and Gemini.
