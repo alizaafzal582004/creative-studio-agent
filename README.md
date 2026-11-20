@@ -14,6 +14,7 @@ YouTube cuts, a combined highlight reel, thumbnails and an SEO pack.
 ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
 ![Groq](https://img.shields.io/badge/Groq-Whisper%20%2B%20LLMs-F55036)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
 </div>
 
@@ -329,3 +330,9 @@ and contains both audio and video, and that the thumbnails were created. It work
 [FFmpeg](https://ffmpeg.org) · [Streamlit](https://streamlit.io) · [OpenCV](https://opencv.org) (YuNet, PP-HumanSeg) ·
 [RNNoise models](https://github.com/GregorR/rnnoise-models) · [Google Fonts](https://fonts.google.com) (OFL / Apache) ·
 [Groq](https://groq.com) · [Google Gemini](https://ai.google.dev)
+
+## License
+
+Released under the [MIT License](LICENSE). Use it, modify it and ship it in commercial products; just keep the
+copyright notice. Third-party components keep their own licenses: Google Fonts (OFL / Apache 2.0), FFmpeg (LGPL/GPL,
+depending on the build you install), and the AI providers' terms of service for Groq and Gemini.
