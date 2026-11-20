@@ -28,6 +28,7 @@ def load_secrets() -> tuple[list[str], str | None]:
     except Exception as e:                       # no secrets file (local run) or invalid TOML
         return [], f"{type(e).__name__}: {e}"
     found: dict[str, str] = {}
+    empty: list[str] = []
 
     def walk(d: dict) -> None:
         for k, v in d.items():
@@ -35,11 +36,13 @@ def load_secrets() -> tuple[list[str], str | None]:
                 walk(v)
             elif v is not None and str(v).strip():
                 found[str(k).strip().upper()] = str(v).strip()
+            else:
+                empty.append(str(k).strip().upper())
 
     walk(data)
     for k, v in found.items():
         os.environ[k] = v
-    return sorted(found), None
+    return sorted(found) + [f"{k} (empty)" for k in sorted(set(empty) - set(found))], None
 
 
 SECRET_NAMES, SECRETS_ERROR = load_secrets()
