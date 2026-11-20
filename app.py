@@ -6,6 +6,7 @@ import json
 import os
 import secrets
 import socket
+import sys
 import threading
 import time
 from pathlib import Path
@@ -14,14 +15,42 @@ import streamlit as st
 
 st.set_page_config(page_title="AI Creative Studio", page_icon=":material/movie:", layout="wide")
 
-# In the cloud, keys live in Streamlit "Secrets": copy them into the environment
-# so studio/config.py reads them exactly as it reads .env
-try:
-    for key, value in st.secrets.items():
-        if isinstance(value, str):
-            os.environ.setdefault(key, value)
-except Exception:
-    pass  # no secrets file on a local machine: .env is used
+REQUIRED_KEYS = ("GROQ_API_KEY", "GEMINI_API_KEY")
+
+
+def load_secrets() -> tuple[list[str], str | None]:
+    """Copy Streamlit "Secrets" (cloud hosting) into the environment so studio/config.py reads them like .env.
+    Runs on every page load, so Secrets saved after the app started are picked up without a reboot.
+    Accepts keys at the top level or under a [section], in any letter case.
+    Returns (secret names found, error text if the Secrets could not be parsed)."""
+    try:
+        data = st.secrets.to_dict()
+    except Exception as e:                       # no secrets file (local run) or invalid TOML
+        return [], f"{type(e).__name__}: {e}"
+    found: dict[str, str] = {}
+
+    def walk(d: dict) -> None:
+        for k, v in d.items():
+            if isinstance(v, dict):
+                walk(v)
+            elif v is not None and str(v).strip():
+                found[str(k).strip().upper()] = str(v).strip()
+
+    walk(data)
+    for k, v in found.items():
+        os.environ[k] = v
+    return sorted(found), None
+
+
+SECRET_NAMES, SECRETS_ERROR = load_secrets()
+
+# studio/config.py reads the keys once, at import. If the Secrets were saved or changed after the app process
+# started, those cached values are stale: re-import the studio modules so they see the current keys (no reboot).
+_cfg = sys.modules.get("studio.config")
+_groq_env = [k for k in (os.getenv("GROQ_API_KEY"), os.getenv("GROQ_API_KEY_2"), os.getenv("GROQ_API_KEY_3")) if k]
+if _cfg and (_cfg.GEMINI_API_KEY != os.getenv("GEMINI_API_KEY") or _cfg.GROQ_API_KEYS != _groq_env):
+    for _name in [m for m in sys.modules if m == "studio" or m.startswith("studio.")]:
+        del sys.modules[_name]
 
 from studio.config import INPUT_DIR, missing_keys  # noqa: E402
 from studio.broll import ready as broll_ready  # noqa: E402
@@ -112,8 +141,15 @@ with st.container(key="hero"):
                      help="Switch to light theme" if dark else "Switch to dark theme", on_click=toggle_theme)
 
 if missing_keys():
-    st.error(f"API keys missing: {', '.join(missing_keys())}. "
-             "Add them to the `.env` file locally, or to **Settings → Secrets** on the host.")
+    lines = [f"**API keys missing:** {', '.join(missing_keys())}.",
+             "Locally: add them to the `.env` file. On Streamlit Cloud: app menu **⋮ → Settings → Secrets**, "
+             "one per line, values in double quotes:",
+             "```toml\nGROQ_API_KEY = \"gsk_...\"\nGEMINI_API_KEY = \"...\"\n```"]
+    if SECRET_NAMES:                     # names only, never values
+        lines.append(f"Secrets found: `{', '.join(SECRET_NAMES)}`. Check the spelling of the missing names.")
+    elif SECRETS_ERROR and "no secrets found" not in SECRETS_ERROR.lower():   # a real formatting error
+        lines.append(f"The Secrets could not be read (formatting error): `{SECRETS_ERROR[:200]}`")
+    st.error("\n\n".join(lines))
     st.stop()
 
 
