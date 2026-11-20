@@ -326,7 +326,17 @@ docker build -t ai-creative-studio .
 docker run -p 7860:7860 --env-file .env ai-creative-studio
 ```
 
-**Hugging Face Spaces** (free CPU hosting): add `HF_TOKEN` (a *Write* token) to `.env`, then run
+**Streamlit Community Cloud** (free, from this GitHub repo):
+1. Sign in at [share.streamlit.io](https://share.streamlit.io) with GitHub and click **Create app**.
+2. Repository: this repo, branch `main`, main file path: `app.py`.
+3. **Advanced settings**: Python **3.12**, then paste your keys into **Secrets** in TOML format
+   (see `.streamlit/secrets.toml.example`). Setting `APP_PASSWORD` is recommended for a public app.
+4. Click **Deploy**. FFmpeg is installed automatically from `packages.txt`.
+
+The free tier has about 1 GB of RAM and a shared CPU, so it suits short videos (a few minutes, 720p). Use a
+local machine or a bigger server for long or HD videos.
+
+**Hugging Face Spaces** (Docker Spaces need a PRO plan): add `HF_TOKEN` (a *Write* token) to `.env`, then run
 `python deploy_hf.py`. The script creates the Space, uploads the code, and stores your API keys as Space
 **secrets**. Keys never go into the code or the repo.
 
