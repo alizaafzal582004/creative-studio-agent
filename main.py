@@ -150,7 +150,7 @@ def main():
     p2.add_argument("--name-title", default="", help="lower third: title, e.g. 'Founder, Acme Inc.'")
     p2.add_argument("--hook-anim", default=None, choices=HOOK_ANIMS, help="hook animation (default: from the style)")
     p2.add_argument("--hook-look", default=None, choices=list(HOOK_LOOKS),
-                    help="hook look: bold / pill / sticker / box (default: from the style)")
+                    help="hook look: bold / pill / sticker / box / behind / none (default: from the style)")
     p2.add_argument("--roman", action="store_true", help="captions in Roman Urdu (Latin letters)")
     p2.add_argument("--preset", default=DEFAULT_PRESET, choices=list(PRESETS),
                     help="one-click settings (options you type override it): "
@@ -158,7 +158,7 @@ def main():
     p2.add_argument("--no-combine", action="store_true",
                     help="don't join all Shorts into one video (combined.mp4)")
     p2.add_argument("--no-context", action="store_true",
-                    help="disable context setup in each Short and bridge lines in the combined video")
+                    help="disable the context setup and thought completion in each Short")
     p2.add_argument("--no-focus", action="store_true", help="disable speaker focus (zoom on a distant speaker)")
     p2.add_argument("--no-landscape", action="store_true", help="don't render 16:9 (YouTube) versions")
     p2.add_argument("--smooth-combine", action="store_true",

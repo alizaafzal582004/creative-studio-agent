@@ -60,7 +60,7 @@ def install_mock() -> None:
 
     pipeline.fill_thumb_texts = fake_thumb_texts
     import studio.context as context_module
-    context_module.context_needs = lambda items, log=print: [1] * len(items)      # exercise the setup (context) path too
+    context_module.context_needs = lambda items, log=print: ([1] * len(items), [0] * len(items))   # (earlier, following) per clip: exercise the setup path
     pipeline.bridge_lines = lambda parts, language, log=print: ["Mock bridge"] * (len(parts) - 1)
     pipeline.find_clips = fake_clips
     pipeline.find_teaser = fake_teaser
@@ -68,6 +68,17 @@ def install_mock() -> None:
     pipeline.choose_moments = fake_moments
     pipeline.romanize = lambda words, cache_path, log=print, ranges=None: words
     pipeline.romanize_texts = lambda texts, log=print: texts
+
+    # Story mode (default on): fake story clips, then the real to_clip_objects turns them into Clip objects.
+    def fake_story(data, n=5, min_len=20, max_len=60, log=print):
+        words = data.get("words", [])
+        start = words[min(5, len(words) - 1)]["start"] if words else 1.0
+        end = min(start + 11, data.get("duration", start + 11))
+        return [dict(start=start, end=end, topic="mock", setup="mock setup", payoff="mock payoff",
+                     takeaway="mock takeaway", hooks=["Ye galti aap bhi roz kar rahe ho"],
+                     hook_text="Ye galti aap bhi roz kar rahe ho", hook_score=70, hook_why="",
+                     title="Mock title", description="Mock description", hashtags=["#shorts"])][:n]
+    pipeline.find_story_clips = fake_story
 
 
 # ---------------- Checks ----------------

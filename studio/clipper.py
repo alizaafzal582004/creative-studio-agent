@@ -220,19 +220,38 @@ def language_rule(roman: bool, video_lang: str | None = None) -> str:
     return "the same language as the video"
 
 
+def length_rule(min_len: int, max_len: int, auto: bool) -> str:
+    """auto: the AI decides each clip's length from how long the thought takes (within wide bounds)."""
+    if not auto:
+        return f"- Each clip must be {min_len}-{max_len} seconds long."
+    return (f"- YOU decide each clip's length ({min_len}-{max_len} s): exactly as long as the complete thought needs.\n"
+            f"  A single punchy point or one-liner: ~15-30 s. An explanation, argument or tip: ~30-60 s.\n"
+            f"  A full story with setup and payoff: up to {max_len} s. Never pad with filler, never cut the payoff.\n"
+            f"  Most complete thoughts take 25-60 s; under 20 s only if the thought truly ends there.\n"
+            f"- Never split ONE continuous thought into several back-to-back clips: keep it as one clip.\n"
+            f"  Fewer complete clips are better than more half-thoughts.")
+
+
 def build_prompt(transcript: str, n: int, min_len: int, max_len: int, roman: bool = False,
-                 playbook: bool = True, video_lang: str | None = None) -> str:
-    """playbook=False: a lighter prompt for long-video parts (saves tokens); hooks are sharpened later."""
+                 playbook: bool = True, video_lang: str | None = None, auto: bool = False) -> str:
+    """playbook=False: a lighter prompt for long-video parts (saves tokens); hooks are sharpened later.
+    auto=True: the AI picks each clip's length itself (between min_len and max_len)."""
     language = language_rule(roman, video_lang)
     guide = HOOK_PLAYBOOK if playbook else SCOUT_NOTE
     return f"""You are a top short-form video editor and copywriter whose Shorts and Reels get millions of views.
 Below is a timestamped transcript of a long video. Pick the {n} best moments to turn into standalone Shorts.
 
 CLIP RULES:
-- Each clip must be {min_len}-{max_len} seconds long.
+{length_rule(min_len, max_len, auto)}
 - The first spoken words must already grab attention: a bold claim, question, surprising fact or emotion.
   Never start with greetings, filler or context-setting.
-- Each clip must be a complete thought that makes sense without the rest of the video, and must not end mid-sentence.
+- CONTEXTUAL START: begin at the start of a sentence where the thought begins. Never start mid-sentence or on a
+  line that only makes sense with what came before ("isliye", "to phir", "wo", "so that's why", "and then").
+- CONTEXTUAL END: end only when the thought is COMPLETE: the point is made, the question answered, the story's
+  payoff or punchline delivered. End on the last word of a full sentence, never mid-sentence or before the payoff.
+- A stranger who never saw the video must understand the clip from start to end (who/what it is about and why).
+- ONE TOPIC per clip: cover a single topic from where it is introduced (in an interview: the question being
+  answered) to where its answer concludes. Never mix two topics, never start in the middle of an answer.
 - Clips must not overlap.
 - Use start and end times from the transcript segments.
 - Be honest with hook_score: most moments are 40-70. Only truly gripping hooks get 85+.
@@ -782,7 +801,7 @@ def check_clip(clip: Clip, words: list[dict], duration: float, max_len: int) -> 
 
 
 def fill_gaps(data: dict, chosen: list[Clip], missing: int, min_len: int, max_len: int, roman: bool,
-              lang: str | None, log=print) -> list[Clip]:
+              lang: str | None, log=print, auto: bool = False) -> list[Clip]:
     """The AI's clips overlapped and too few remain: send only the parts of the video not in any clip
     and ask for more clips there (they can never overlap the clips already chosen)."""
     free = [s for s in data.get("segments", [])
@@ -792,7 +811,7 @@ def fill_gaps(data: dict, chosen: list[Clip], missing: int, min_len: int, max_le
     log(f"     {missing} clip(s) short: searching the rest of the video...")
     text = "\n".join(f"[{s['start']:.1f} - {s['end']:.1f}] {s['text'].strip()}" for s in free)
     try:
-        plan = ask_ai(build_prompt(text, missing + 1, min(min_len, 15), max_len, roman=roman, video_lang=lang),
+        plan = ask_ai(build_prompt(text, missing + 1, min(min_len, 15), max_len, roman=roman, video_lang=lang, auto=auto),
                       ClipPlan, log)
     except RuntimeError as e:
         log(f"     Warning: no more clips found: {e}")
@@ -828,7 +847,7 @@ GEMINI_PARTS = 3     # a long video goes to Gemini in this many parts, all at on
 
 
 def find_in_parts(data: dict, want: int, min_len: int, max_len: int, roman: bool, lang: str | None,
-                  log=print) -> list[Clip]:
+                  log=print, auto: bool = False) -> list[Clip]:
     """Long video (e.g. 1 hour): transcript in parts, and ALL parts sent to the AI AT ONCE (threads).
     The wait = the longest single part, not the sum.
       - Gemini available: ~3 big parts (~20 min each), with the full hook playbook
@@ -867,7 +886,7 @@ def find_in_parts(data: dict, want: int, min_len: int, max_len: int, roman: bool
             try:
                 # Gemini usually returns a ~15k-token part in ~30 s: over 60 s = stuck,
                 # move to Groq (we used to wait 120 s: 2 minutes lost on a 2-hour video)
-                plan = ask_ai(build_prompt(part, per, min_len, max_len, roman=roman, video_lang=lang),
+                plan = ask_ai(build_prompt(part, per, min_len, max_len, roman=roman, video_lang=lang, auto=auto),
                               ClipPlan, say, use_groq=False, fast=False, gemini_timeout=60)
                 return plan.clips, notes
             except RuntimeError:
@@ -879,7 +898,7 @@ def find_in_parts(data: dict, want: int, min_len: int, max_len: int, roman: bool
         for j, piece in enumerate(parts):
             try:
                 found += ask_ai(build_prompt(piece, per if len(parts) == 1 else 2, min_len, max_len, roman=roman,
-                                             playbook=False, video_lang=lang),
+                                             playbook=False, video_lang=lang, auto=auto),
                                 ClipPlan, say, groq_start=k + j).clips
             except RuntimeError as e:
                 say(f"     Warning: skipped part {k + 1}.{j + 1}: {e}")
@@ -900,7 +919,7 @@ def find_in_parts(data: dict, want: int, min_len: int, max_len: int, roman: bool
 
 
 def find_clips(data: dict, n: int = 5, min_len: int = 20, max_len: int = 60, log=print,
-               roman: bool = False) -> list[Clip]:
+               roman: bool = False, auto: bool = False) -> list[Clip]:
     """Send the transcript to the AI, get the best moments back, then validate and clean them.
     Long video (e.g. 1 hour): in one go on Gemini, otherwise search in parts and keep the best."""
     if not GEMINI_API_KEY and not GROQ_API_KEY:
@@ -911,10 +930,10 @@ def find_clips(data: dict, n: int = 5, min_len: int = 20, max_len: int = 60, log
     transcript = transcript_with_times(data)
     candidates: list[Clip] | None = None
     if est_tokens(transcript) <= WINDOW_TOKENS:
-        candidates = ask_ai(build_prompt(transcript, want, min_len, max_len, roman=roman, video_lang=lang),
+        candidates = ask_ai(build_prompt(transcript, want, min_len, max_len, roman=roman, video_lang=lang, auto=auto),
                             ClipPlan, log).clips
     else:
-        candidates = find_in_parts(data, want, min_len, max_len, roman, lang, log)
+        candidates = find_in_parts(data, want, min_len, max_len, roman, lang, log, auto=auto)
 
     # don't trust the AI blindly: validate every clip
     duration = data.get("duration", 0)
@@ -923,7 +942,7 @@ def find_clips(data: dict, n: int = 5, min_len: int = 20, max_len: int = 60, log
 
     best = remove_overlaps(good)[:n]
     if len(best) < n:
-        best += fill_gaps(data, best, n - len(best), min_len, max_len, roman, lang, log)
+        best += fill_gaps(data, best, n - len(best), min_len, max_len, roman, lang, log, auto=auto)
     best = grow_short(best, min_len, duration, words)
     if len(best) < n:
         log(f"     (only {len(best)} good clips found, {n} requested: the video is short or the length range is strict)")

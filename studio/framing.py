@@ -8,7 +8,10 @@ os.environ.setdefault("OPENCV_LOG_LEVEL", "ERROR")   # silence noisy OpenCV warn
 import cv2  # noqa: E402
 import numpy as np  # noqa: E402
 
-from studio.config import ROOT
+from studio import cancel
+from studio.config import CPU_THREADS, ROOT
+
+cv2.setNumThreads(CPU_THREADS)     # cool mode (see config.py): face scan + masks use about half the cores
 
 MODEL_URL = ("https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/"
              "face_detection_yunet/face_detection_yunet_2023mar.onnx")
@@ -92,6 +95,8 @@ def scan_faces(video: Path, start: float, end: float, fps: float = 4) -> list[Fa
             break
         phase = i % step
         i += 1
+        if i % 60 == 0:
+            cancel.pause_point()           # thermal guard: wait while the CPU cools down
         if phase > 1:
             continue
 

@@ -10,14 +10,14 @@ PRESETS = {
         "about": "One person on camera, high energy: text behind person, big Anton font, shake, B-roll, glitch",
         "settings": dict(layout="single", caption_style="viral_anton", hook_look="behind", grade="vivid",
                          transition="glitch", shake=True, punch_in=True, emphasis=True, counters=True,
-                         broll=True, gap=0.4, music_volume=0.12, portrait=False, teaser=True, denoise="medium"),
+                         broll=True, gap=0.4, music=None, portrait=False, teaser=True, denoise="medium"),
     },
     "podcast_pro": {
         "label": "Podcast Pro",
         "about": "Interviews and podcasts with two people: split-screen, name lower third, cinematic color, background voices removed",
         "settings": dict(layout="auto", caption_style="green_karaoke", hook_look="pill", hook_anim="slide",
                          grade="cinematic", transition="flash", shake=False, punch_in=True, emphasis=True,
-                         counters=True, broll=False, music_volume=0.10, portrait=False, teaser=True,
+                         counters=True, broll=False, music=None, portrait=False, teaser=True,
                          denoise="strong"),
     },
     "clean_minimal": {
@@ -25,7 +25,7 @@ PRESETS = {
         "about": "Calm and clean: background blur, Bebas font, typewriter hook, warm color, end screen",
         "settings": dict(layout="single", caption_style="clean_bebas", hook_look="bold", hook_anim="typewriter",
                          grade="warm", transition="none", shake=False, punch_in=False, emphasis=False,
-                         counters=False, broll=False, music_volume=0.10, portrait=True, end_card=True,
+                         counters=False, broll=False, music_volume=0.05, portrait=True, end_card=True,
                          teaser=False, denoise="medium"),
     },
     "custom": {

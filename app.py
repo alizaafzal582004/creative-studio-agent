@@ -169,7 +169,11 @@ with st.sidebar:
 
     lang_label = st.selectbox("Video language", list(LANGUAGES))
     n_clips = st.slider("How many Shorts?", 1, 8, 3)
-    min_len, max_len = st.slider("Length of each Short (seconds)", 10, 90, (20, 60))
+    auto_len = st.toggle(":material/auto_awesome: AI decides the length", value=True,
+                         help="Each Short is as long as its complete thought: it starts where the point begins and "
+                              "ends once it is fully made (about 15-90 s). Turn off to set the range yourself.")
+    min_len, max_len = st.slider("Length of each Short (seconds)", 10, 90, (15, 90) if auto_len else (20, 60),
+                                 disabled=auto_len, key=f"len_{auto_len}")
 
     with st.expander("Captions", icon=":material/subtitles:"):
         style_key = st.selectbox("Caption style", list(STYLES), index=list(STYLES).index(base.caption_style),
@@ -186,7 +190,7 @@ with st.sidebar:
                                                       "(best with one person facing the camera)")
         look_key = "" if look_key == "auto" else look_key
         try:
-            st.image(style_preview(style_key, font_key, look_key if look_key != "behind" else ""),
+            st.image(style_preview(style_key, font_key, look_key if look_key not in ("behind", "none") else ""),
                      caption="Preview (as in the final video)" + (" · in the video, text-behind appears behind the person"
                                                               if look_key == "behind" else ""), width="stretch")
         except Exception as e:      # the rest of the website keeps working even if the preview fails
@@ -203,7 +207,7 @@ with st.sidebar:
                                     "The AI-written hook goes in the title.")
         context_on = st.toggle(":material/extension: Each Short makes sense alone (context)", value=base.context, key=key("context"),
                                help="Adds the needed earlier setup after the hook, ends clips on a full sentence, "
-                                    "and adds a bridge line before each part of the combined video.")
+                                    "and keeps going until the thought is complete.")
         teaser_on = st.toggle(":material/movie: Teaser: strongest line first", value=base.teaser, key=key("teaser"),
                               disabled=hook_start,
                               help="Not available with the spoken-hook start (both go at the beginning). Turn that off to use it.")
@@ -435,7 +439,7 @@ with st.container(key="source"):
             # the preset's settings + whatever was changed in the sidebar (every sidebar value starts from the preset)
             settings = replace(
                 base,
-                lang=LANGUAGES[lang_label], clips=n_clips, min_len=min_len, max_len=max_len,
+                lang=LANGUAGES[lang_label], clips=n_clips, min_len=min_len, max_len=max_len, auto_len=auto_len,
                 gap=gap, cut_silence=cut_silence, track_faces=track_faces, roman=roman, caption_style=style_key,
                 emphasis=emphasis, sfx=sfx_on,
                 music=None if music_choice == tracks[0] else music_choice, music_volume=music_volume,

@@ -20,6 +20,13 @@ ROOT = Path(__file__).resolve().parent.parent
 INPUT_DIR = ROOT / "input"
 OUTPUT_DIR = ROOT / "output"
 FONTS_DIR = ROOT / "assets" / "fonts"
+
+# Cool mode: a laptop that runs every core at 100% for minutes overheats (Windows then hibernates it with a
+# 'critical thermal event'). Use about half the cores and at most 2 FFmpeg processes at once: a bit slower,
+# same video quality. Set CPU_THREADS=0 in .env for full speed (desktop / good cooling).
+_cores = os.cpu_count() or 4
+CPU_THREADS = int(os.getenv("CPU_THREADS", "") or max(2, _cores // 2)) or _cores
+FFMPEG_AT_ONCE = int(os.getenv("FFMPEG_AT_ONCE", "") or (2 if CPU_THREADS < _cores else 8))
 INPUT_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 

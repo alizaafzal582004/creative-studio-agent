@@ -6,13 +6,22 @@ from pathlib import Path
 from studio.config import FONTS_DIR
 from studio.ffmpeg import run_ffmpeg, move_into_place
 from studio.framing import video_size
+from studio.voice import polish_audio
 
 # Ducking: when the voice rises above the threshold, the music is pushed down by the ratio.
 # Tested: ~17 dB quieter on loud speech, ~8-12 dB on normal talk. attack/release = how fast it ducks/recovers (ms)
-DUCKING = "threshold=0.005:ratio=20:attack=15:release=350:knee=1"
+# release 700 ms: the music stays down between words (no 'pumping' up in every tiny pause)
+DUCKING = "threshold=0.003:ratio=20:attack=10:release=700:knee=2"
 # Every video at one loudness: quiet (-28 dB) and loud (-14 dB) both become -16 LUFS. loudnorm runs at
 # 192 kHz internally, so resample back to 48 kHz.
 SPEECH_LOUDNESS = "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000"
+# Voice clear and in front: cut rumble, lift the 'presence' band (where words are understood), and even out
+# quiet and loud words so no word gets lost under the music.
+VOICE_FX = ("highpass=f=80,equalizer=f=3000:t=q:w=1.2:g=3,"
+            "acompressor=threshold=0.1:ratio=3:attack=5:release=120:makeup=1.5")
+# Music: (1) every track to the same loudness first, so 'music volume' means the same for any track (a loud
+# track can never cover the voice), (2) a dip in the voice band (1-4 kHz) so the voice sits on top of the music.
+MUSIC_FX = "loudnorm=I=-16:TP=-2:LRA=11,aresample=44100,equalizer=f=2500:t=q:w=1.0:g=-8"
 
 
 
@@ -161,7 +170,7 @@ def render_shots(video: Path, shots: list[tuple[float, float, float]], out_path:
 
     # Voice: (1) remove background noise, (2) normalize loudness (-16 LUFS, the Shorts/YouTube standard).
     # Otherwise, on a quiet video the music sounds as loud as the speaker ("there's noise in the background").
-    voice_fx = [f for f in (denoise, SPEECH_LOUDNESS) if f]
+    voice_fx = [f for f in (denoise, VOICE_FX, SPEECH_LOUDNESS) if f]
     parts.append(f"[ca]{','.join(voice_fx)}[cad]")
     speech = "[cad]"
 
@@ -289,7 +298,8 @@ def render_shots(video: Path, shots: list[tuple[float, float, float]], out_path:
         if music:
             extra_inputs += ["-stream_loop", "-1", "-i", str(music.resolve())]   # loop short music
             fade_out = max(total - 1.5, 0)
-            parts.append(f"[{idx}:a]{same},atrim=0:{total:.3f},asetpts=PTS-STARTPTS,volume={music_volume:.2f},"
+            parts.append(f"[{idx}:a]{same},atrim=0:{total:.3f},asetpts=PTS-STARTPTS,{MUSIC_FX},{same},"
+                         f"volume={music_volume:.2f},"
                          f"afade=t=in:d=1,afade=t=out:st={fade_out:.3f}:d=1.5[music]")
             # Ducking: push the music down whenever the 'sidechain' (the voice) is active
             parts.append(f"[music][sidechain]sidechaincompress={DUCKING}[ducked]")
@@ -326,4 +336,5 @@ def render_shots(video: Path, shots: list[tuple[float, float, float]], out_path:
         move_into_place(tmp_out, out_path.resolve())
     finally:
         tmp_out.unlink(missing_ok=True)
+    polish_audio(out_path)
     return out_path

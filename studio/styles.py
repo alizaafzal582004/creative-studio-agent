@@ -77,7 +77,8 @@ DEFAULT_STYLE = "bold_pop"
 HOOK_ANIMS = ["slide", "pop", "typewriter", "fade"]
 HOOK_LOOKS = {"bold": "Bold (no box, thick outline)", "pill": "Pill (colored rounded box per line)",
               "sticker": "Sticker (tilted white box)", "box": "Box (plain black box)",
-              "behind": "Text behind person (big text behind the speaker)"}
+              "behind": "Text behind person (big text behind the speaker)",
+              "none": "None (no hook text on screen)"}
 
 
 def ass_color(rgb: str, alpha: str = "00") -> str:

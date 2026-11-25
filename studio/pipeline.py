@@ -12,6 +12,7 @@ from studio.captions import words_to_ass, LOWER_START, LOWER_SECONDS, END_SECOND
 from studio.grades import grade_filter
 from studio.brand import logo_frames
 from studio.clipper import Clip, find_clips, fill_thumb_texts
+from studio.story import find_story_clips, to_clip_objects
 from studio.edit import keep_ranges, split_at_sentences, remap_words, words_inside, total, plan_zooms
 from studio.emphasis import find_emphasis, is_filler
 from studio.emoji import pop_frames
@@ -119,7 +120,7 @@ def render_combined(video: Path, parts: list[dict], s: "Settings", style, out_di
 
         # Context: a short bridge line on screen before each next part, so it reads as one story
         bridges: list[str] = []
-        if s.context:
+        if s.context and s.bridges:
             language = ("Roman Urdu (Urdu written with English letters)" if s.roman
                         else "the same language as the parts")
             bridges = bridge_lines([" ".join(w["word"].strip() for w in p["words"]) for p in parts], language, log)
@@ -187,29 +188,50 @@ def snap_ends(clips: list, segments: list[dict], max_extra: float = 4.0) -> None
             c.end = min(seg["end"] + 0.1, nxt)
 
 
+def following(c, clips: list, segments: list[dict]) -> list[dict]:
+    """Sentences right after a clip ends, up to the next clip's start (at most NEXT_WINDOW s ahead)."""
+    from studio.context import NEXT_WINDOW
+    nxt = min([o.start for o in clips if o is not c and o.start >= c.end - 0.05] + [c.end + NEXT_WINDOW])
+    return [sg for sg in segments if sg["start"] >= c.end - 0.15 and sg["end"] <= nxt + 0.15 and sg["text"].strip()]
+
+
 def add_context(clips: list, openings: dict, segments: list[dict], s, log=print) -> dict[int, list | None]:
     """Every Short must make sense on its own: the AI says how many sentences before the hook (setup) are needed.
     Returns: {clip: [setup_start, hook_start] or None}. In spoken-hook mode the Short is ordered
     hook → setup → rest (compose_ranges); otherwise the clip simply starts earlier, at the setup."""
-    from studio.context import MAX_BEFORE, MAX_EXTRA, context_needs
+    from studio.context import BEFORE_WINDOW, MAX_BEFORE, MAX_EXTRA, MAX_NEXT, MAX_SETUP, context_needs
     items, info = [], []
     for i, c in enumerate(clips):
         op = openings.get(i) if s.hook_start else None
         start = op[0] if op else c.start
         hook_end = op[1] if op else min(c.end, start + 6)
-        before = [sg for sg in segments if sg["end"] <= start + 0.05 and sg["start"] >= start - 60][-MAX_BEFORE:]
+        prev_end = max([o.end for o in clips if o is not c and o.end <= start + 0.05] + [0.0])
+        before = [sg for sg in segments if sg["end"] <= start + 0.05 and sg["start"] >= max(start - BEFORE_WINDOW, prev_end - 0.05)
+                  and sg["text"].strip()][-MAX_BEFORE:]
         items.append({"before": [sg["text"].strip() for sg in before],
                       "hook": " ".join(sg["text"].strip() for sg in segments
                                        if sg["start"] < hook_end and sg["end"] > start),
                       "after": " ".join(sg["text"].strip() for sg in segments
-                                        if hook_end - 0.1 <= sg["start"] < c.end)})
+                                        if hook_end - 0.1 <= sg["start"] < c.end),
+                      "next": [sg["text"].strip() for sg in following(c, clips, segments)][:MAX_NEXT]})
         info.append((start, before, op))
-    log("     Making each Short stand alone: checking for needed setup...")
-    needs = context_needs(items, log)
+    log("     Making each Short one complete topic: finding where each topic starts and ends...")
+    needs, finish = context_needs(items, log)
+    # Finish the thought: extend the clip end over the needed following sentences (never into the next clip,
+    # never more than max_len + a little)
+    for i, (c, n) in enumerate(zip(clips, finish)):
+        nxt = following(c, clips, segments)[:n]
+        if nxt:
+            new_end = min(nxt[-1]["end"] + 0.1, c.start + s.max_len + 5)
+            if new_end > c.end + 0.3:
+                log(f"     clip {i + 1}: +{new_end - c.end:.1f}s so the topic is complete ({len(nxt)} more sentence(s))")
+                c.end = new_end
     found: dict[int, list | None] = {}
     for i, (c, n, (start, before, op)) in enumerate(zip(clips, needs, info)):
         chosen = before[-n:] if n > 0 else []
-        while chosen and start - chosen[0]["start"] > MAX_EXTRA:      # setup too long: use the nearest sentences
+        # room for the setup: always MAX_EXTRA, more while the Short stays within max_len (never over MAX_SETUP)
+        room = min(MAX_SETUP, max(MAX_EXTRA, s.max_len - (c.end - start)))
+        while chosen and start - chosen[0]["start"] > room:      # setup too long: use the nearest sentences
             chosen = chosen[1:]
         prev_end = max([o.end for o in clips if o is not c and o.end <= start] + [0.0])
         a = max(chosen[0]["start"], prev_end) if chosen else start
@@ -217,7 +239,7 @@ def add_context(clips: list, openings: dict, segments: list[dict], s, log=print)
             found[i] = None
             continue
         found[i] = [round(a, 3), round(start, 3)]
-        log(f"     clip {i + 1}: added {len(chosen)} earlier sentence(s) for context ({start - a:.1f}s)")
+        log(f"     clip {i + 1}: starts {start - a:.1f}s earlier, where the topic starts ({len(chosen)} sentence(s))")
         if not op:
             c.start = a                    # not hook-start: the clip starts at the setup directly
     return found
@@ -341,6 +363,7 @@ class Settings:
     clips: int = 5
     min_len: int = 20
     max_len: int = 60
+    auto_len: bool = True       # the AI decides each Short's length (min_len..max_len = outer bounds only)
     gap: float = 0.6            # cut silences longer than this
     cut_silence: bool = True
     track_faces: bool = True
@@ -370,13 +393,15 @@ class Settings:
     thumbnails: bool = True     # a cover (9:16) + YouTube thumbnail (16:9) for every Short
     combine: bool = True        # join all Shorts into one video at the end (original order)
     focus: bool = True          # speaker focus: move the camera closer to a distant speaker (zoom)
-    context: bool = True        # every Short stands alone: needed earlier context (setup) + bridge lines in the combined video
+    context: bool = True        # every Short stands alone: needed earlier context (setup) and a finished thought
+    bridges: bool = False       # combined video: on-screen connecting line before each part (off: hook shown only once)
     landscape: bool = True      # a 16:9 (YouTube) version of every Short and the combined video too
     combine_smooth: bool = False   # crossfade between clips when joining (re-encode: ~1-2 min more)
-    teaser: bool = True         # the strongest line (in the guest's voice) before the clip (not with hook_start)
+    teaser: bool = False        # the strongest line (in the guest's voice) before the clip (it is heard twice)
+    story: bool = True          # har clip mukammal kahani: topic → jawab → faida
     hook_start: bool = True     # the Short starts on the sentence where the guest says the hook; those words on screen
     font: str = ""              # caption Google Font ("" = from the style)
-    hook_look: str = ""         # hook look: bold / pill / sticker / box ("" = from the style)
+    hook_look: str = ""         # hook look: bold / pill / sticker / box / none ("" = from the style)
     denoise: str = "medium"     # background noise hatao: light / medium / strong, "" = band
 
 
@@ -428,6 +453,8 @@ class Timer:
 
 def make_shorts(video: Path, s: Settings, log=print) -> tuple[Path, list[dict]]:
     """Long video → Shorts. Returns: (output folder, per-clip report)."""
+    from studio import thermal
+    thermal.notify = log               # cooling pauses show up in the job log
     out_dir = OUTPUT_DIR / f"{video.stem}_shorts"
     out_dir.mkdir(exist_ok=True)
     seo_path = out_dir / "seo_pack.json"
@@ -469,7 +496,13 @@ def make_shorts(video: Path, s: Settings, log=print) -> tuple[Path, list[dict]]:
             old_ctx = {i: item.get("context") for i, item in enumerate(old)}
     else:
         log(f"2/3  AI is finding the best moments ({s.clips} clips)...")
-        clips = find_clips(data, n=s.clips, min_len=s.min_len, max_len=s.max_len, log=log, roman=s.roman)
+        if s.story:
+            log("     Story mode: har clip mukammal kahani (topic → jawab → faida)")
+            clips = to_clip_objects(find_story_clips(data, n=s.clips, min_len=s.min_len,
+                                                     max_len=s.max_len, log=log), Clip)
+        else:
+            clips = find_clips(data, n=s.clips, min_len=s.min_len, max_len=s.max_len, log=log, roman=s.roman,
+                               auto=s.auto_len)
     if not clips:
         raise RuntimeError("AI found no good clip. Try a shorter minimum clip length.")
 
@@ -477,7 +510,7 @@ def make_shorts(video: Path, s: Settings, log=print) -> tuple[Path, list[dict]]:
     # All clips at once (parallel), BEFORE Roman Urdu (so new words from a longer clip get converted too)
     tick = timer.add("AI clips + hooks", tick)
     openings: dict[int, list | None] = {}
-    if s.hook_start:
+    if s.hook_start and not s.story:
         openings = choose_openings(clips, words, old_open, s.min_len, data.get("duration", 0), log, segments)
         tick = timer.add("spoken hook", tick)
     # Every Short stands alone: clip extended to the sentence end, needed earlier context (setup) included
@@ -506,7 +539,8 @@ def make_shorts(video: Path, s: Settings, log=print) -> tuple[Path, list[dict]]:
 
     style = STYLES.get(s.caption_style, STYLES[DEFAULT_STYLE])
     style = apply_font(style, s.font, log)
-    if s.hook_look:                        # hook look chosen separately from the style (bold / pill / sticker / box)
+    no_hook = s.hook_look == "none"        # 'None': no hook text on screen (the hook still goes in the title)
+    if s.hook_look and not no_hook:        # hook look chosen separately from the style (bold / pill / sticker / box)
         style = replace(style, hook_look=s.hook_look)
     ensure_font(URDU_FONT_FILE, log)       # Nastaliq too, for Urdu script
     use_broll = s.broll and broll_ready()
@@ -601,7 +635,7 @@ def make_shorts(video: Path, s: Settings, log=print) -> tuple[Path, list[dict]]:
         # the hook stays as long as the opening sentence is being spoken (at least 3 s, at most 5)
         opening = openings.get(i - 1)
         spoken = spoken_text(words, opening) if opening else ""
-        on_screen = clip.hook_text
+        on_screen = "" if no_hook else clip.hook_text
         hook_secs = min(max(opening[1] - opening[0] + 0.4, HOOK_SECONDS), 5.0) if opening else HOOK_SECONDS
 
         # b) Every sentence is a 'shot'; face tracking frames each shot (faces were already scanned)
@@ -852,7 +886,7 @@ def make_shorts(video: Path, s: Settings, log=print) -> tuple[Path, list[dict]]:
                        "context": contexts.get(i - 1),
                        "broll": items,    # credits (photographer + link + site) go here too
                        "thumbnails": thumbs})
-        combo_parts.append({"start": clip.start, "file": mp4.name, "hook": clip.hook_text, "shots": shots,
+        combo_parts.append({"start": clip.start, "file": mp4.name, "hook": on_screen, "shots": shots,
                             "zooms": zooms or [1.0] * len(shots), "cys": cys or [None] * len(shots),
                             "wide_zooms": lz or [1.0] * len(shots), "wide_cys": lcy or [None] * len(shots),
                             "words": new_words,

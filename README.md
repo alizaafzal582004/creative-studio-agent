@@ -34,7 +34,7 @@ AI Creative Studio does that pass in minutes, on a laptop CPU, with no GPU and n
 |---|---|
 | **Vertical Shorts (9:16)** | 1080x1920, ready for YouTube Shorts, Instagram Reels and TikTok |
 | **Landscape cuts (16:9)** | The same clips reframed for YouTube (optional) |
-| **Combined highlight reel** | All clips in original order, hook shown once, transitions at every join, bridge lines between parts |
+| **Combined highlight reel** | All clips in original order, hook shown only once, transitions at every join |
 | **Thumbnails** | A 9:16 cover and a 16:9 YouTube thumbnail per Short, picked from the sharpest, clearest face frame |
 | **SEO pack** | Title, description, hashtags and the AI's reasoning for every clip (JSON) |
 
@@ -100,7 +100,7 @@ features built so far.
 | **Google Fonts** | 6 caption fonts, downloaded automatically |
 | **Speaker focus** | Zooms in on a distant speaker, never cutting a face |
 | **16:9 landscape versions** | Every Short reframed for YouTube |
-| **Combined highlight reel** | All clips in original order, hook shown once, a transition at every join, bridge lines between parts |
+| **Combined highlight reel** | All clips in original order, hook shown only once, a transition at every join |
 | **Background noise removal** | RNNoise, with an optional speech gate for noisy rooms |
 | **Loudness normalization** | -16 LUFS, the Shorts and YouTube standard |
 
@@ -281,6 +281,8 @@ needle, from biggest impact to smallest:
 | **Leave "Smooth crossfade" off** | Saves 1-2 min | Crossfades need an extra re-encode of the joined clips |
 | **Add `GROQ_API_KEY_2` / `_3`** (free keys from separate Groq accounts) | Fewer waits on long videos | Transcription chunks and AI calls are spread across accounts, avoiding rate-limit pauses |
 | **Run on a machine with more CPU cores** | Scales with cores | FFmpeg encoding and face scanning are CPU-bound |
+| **Desktop or good cooling: set `CPU_THREADS=0`** in `.env` | Uses every core | By default the app runs in "cool mode" (about half the cores, 2 FFmpeg jobs at once) so laptops do not overheat and shut down |
+| **Thermal guard (Windows)** | Prevents shutdowns | If the CPU reaches 88 °C, rendering pauses until it is back at 75 °C, then continues where it stopped. Tune with `TEMP_PAUSE` / `TEMP_RESUME` in `.env` |
 | **Laptops: plug in and use "Best performance" / "High performance" power mode** | Up to ~2x | Battery saver throttles the CPU heavily during renders |
 | **Big local files: use "Pick from the input/ folder"** instead of uploading | Skips the upload | Copy the video into `input/` and pick it from the list |
 | **Re-runs are nearly free** | Seconds instead of minutes | Transcripts, Roman Urdu and AI picks are cached; re-uploading the same video reuses them. On the CLI, `--reuse` re-renders with no AI calls |

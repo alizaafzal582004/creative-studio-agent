@@ -15,6 +15,7 @@ os.environ.setdefault("OPENCV_LOG_LEVEL", "ERROR")
 import cv2  # noqa: E402
 import numpy as np  # noqa: E402
 
+from studio import cancel
 from studio.config import ROOT
 
 MODEL_URL = ("https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/"
@@ -74,6 +75,8 @@ def mask_video(video: Path, shots: list[tuple[float, float, float]], crops: list
         for k in range(frames):
             if until is not None and done + k / fps > until + 0.3:
                 break                  # don't even decode the remaining frames
+            if k % 30 == 0:
+                cancel.pause_point()       # thermal guard: wait while the CPU cools down
             ok, frame = cap.read()
             if not ok:
                 writer.write(blank if prev is None else prev)

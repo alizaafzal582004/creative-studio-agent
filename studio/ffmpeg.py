@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 
 from studio import cancel
+from studio.config import CPU_THREADS
 
 
 def find_ffmpeg() -> str:
@@ -52,6 +53,10 @@ def run_ffmpeg(args: list[str], cwd: Path | None = None) -> None:
     """Pass args without 'ffmpeg' itself. Raises a clear error on failure."""
     # log real errors only (not the "frame=... time=..." progress lines) so problems are easy to spot
     quiet = ["-hide_banner", "-nostats", "-loglevel", "error"]
+    if "-threads" not in args and args:
+        # cool mode: filters and the encoder use CPU_THREADS cores, not all of them (output file = last arg)
+        n = str(CPU_THREADS)
+        args = ["-filter_threads", n, "-filter_complex_threads", n, *args[:-1], "-threads", n, args[-1]]
     result = cancel.run([FFMPEG, *quiet, *args], text=True,
                             encoding="utf-8", errors="replace", cwd=cwd)
     if result.returncode != 0 and not result.stderr.strip():
